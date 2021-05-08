@@ -97,10 +97,21 @@ class MainActivity : AppCompatActivity() {
 
             val delete: TextView = findViewById(R.id.delete)
             delete.setOnClickListener {
-                Log.d(TAG, "onCreate: url: "+ urlIamge)
-                if (deleteImage(urlIamge)){
+                Log.d(TAG, "onCreate: url: " + urlIamge)
+                if (deleteImage(urlIamge)) {
                     Log.d(TAG, "onCreate: true")
-                }else{
+                } else {
+                    Log.d(TAG, "onCreate: false")
+                }
+            }
+
+            val rename: TextView = findViewById(R.id.rename)
+            rename.setOnClickListener {
+                Log.d(TAG, "onCreate: url: " + urlIamge)
+
+                if (renameFile(urlIamge, "orange1.pdf")) {
+                    Log.d(TAG, "onCreate: true")
+                } else {
                     Log.d(TAG, "onCreate: false")
                 }
             }
@@ -288,6 +299,26 @@ class MainActivity : AppCompatActivity() {
         val rtf = MimeTypeMap.getSingleton().getMimeTypeFromExtension("rtf")
         val html = MimeTypeMap.getSingleton().getMimeTypeFromExtension("html")
 
+        val args =
+            arrayOf(
+                "%.pdf",
+                "%.doc",
+                "%.docx",
+                "%.xls",
+                "%.xlsx",
+                "%.ppt",
+                "%.pptx",
+                "%.txt",
+                "%.rtx",
+                "%.rtf",
+                "%.html"
+            )
+//        val clause = MediaStore.Files.FileColumns.DATA + " like ?"
+//        val table = MediaStore.Files.getContentUri("external")
+//        val column = arrayOf(MediaStore.Files.FileColumns.DATA)
+//
+//        val cursor: Cursor? = getContentResolver().query(table, column, clause, selectionArgs, null)
+
         //Table
         val table = MediaStore.Files.getContentUri("external")
         //Column
@@ -306,15 +337,15 @@ class MainActivity : AppCompatActivity() {
 //                + " OR " + MediaStore.Files.FileColumns.MIME_TYPE + "=?"
 //                + " OR " + MediaStore.Files.FileColumns.MIME_TYPE + "=?")
         //args
-        val args = arrayOf(pdf, doc, docx, xls, xlsx, ppt, pptx, txt, rtx, rtf, html)
+//        val args = arrayOf(pdf, doc, docx, xls, xlsx, ppt, pptx, txt, rtx, rtf, html)
 
         val clause = StringBuilder()
 
         args.forEachIndexed { index, elemment ->
             if (index == 0) {
-                clause.append(MediaStore.Files.FileColumns.MIME_TYPE + " like ?")
+                clause.append(MediaStore.Files.FileColumns.DATA + " like ?")
             } else {
-                clause.append(" OR " + MediaStore.Files.FileColumns.MIME_TYPE + " like ?")
+                clause.append(" OR " + MediaStore.Files.FileColumns.DATA + " like ?")
             }
         }
 
@@ -377,24 +408,22 @@ class MainActivity : AppCompatActivity() {
     suspend fun getDownload(): ArrayList<File> = withContext(Dispatchers.Default) {
         val downloads = ArrayList<File>()
         var arrFile = ArrayList<File>()
-//        val path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toString()
-//        val file = File(path)
-//        val filesInDirectory = file.listFiles().toList()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val file = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            file?.let {
-                arrFile = it.listFiles().toCollection(ArrayList())
-            }
-        } else {
-            val file =
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            arrFile = file.listFiles().toCollection(ArrayList())
-        }
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//            val file = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+//            file?.let {
+//                arrFile = it.listFiles().toCollection(ArrayList())
+//            }
+//        } else {
+        val file =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        arrFile = file.listFiles().toCollection(ArrayList())
+//        }
 
         for (i in arrFile.toList()) {
-            downloads.add(i)
-//            Log.d(TAG, "getDownload: name: " + i.absolutePath)
+            if (!i.isDirectory) {
+                downloads.add(i)
+            }
         }
         downloads
     }
@@ -522,25 +551,52 @@ class MainActivity : AppCompatActivity() {
 
     suspend fun getScreenShots(): ArrayList<String> = withContext(Dispatchers.Default) {
         var screenShots = ArrayList<String>()
-        var arrFile = ArrayList<File>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val file = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-            val screenshots = File(file, "Screenshots")
-            arrFile = screenshots.listFiles().toCollection(ArrayList())
-        } else {
-            val file = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-            val screenshots = File(file, "Screenshots")
-            var arrFile = screenshots.listFiles().toCollection(ArrayList())
+        var arrFilePic = ArrayList<File>()
+        var arrFileDCMI = ArrayList<File>()
+
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//            val file = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+//            val screenshots = File(file, "Screenshots")
+//            screenshots.listFiles()?.let {
+//                arrFilePic = it.toCollection(ArrayList())
+//            }
+//        } else {
+        val file = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+        val file2 = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+//            var screenShotPath = arrayOf(externalFilesDir)
+        val screenshotsPic = File(file, "Screenshots")
+        val screenshotsDCMI = File(file2, "Screenshots")
+
+        Log.d(TAG, "getScreenShots: url: " + file.absolutePath)
+        Log.d(TAG, "getScreenShots: url: " + file2?.absolutePath)
+        Log.d(TAG, "getScreenShots: " + screenshotsPic.exists())
+        if (screenshotsPic.exists()) {
+            screenshotsPic.listFiles()?.let {
+                arrFilePic = it.toCollection(ArrayList())
+            }
         }
-        for (i in arrFile) {
-//            Log.d(TAG, "getDownload: name: " + i.absolutePath)
-            screenShots.add(i.absolutePath)
+        if (screenshotsDCMI.exists()) {
+            screenshotsDCMI.listFiles()?.let {
+                arrFileDCMI = it.toCollection(ArrayList())
+            }
+        }
+//        }
+        for (i in arrFilePic) {
+            if (!i.isDirectory) {
+                screenShots.add(i.absolutePath)
+            }
+        }
+        for (item in arrFileDCMI) {
+            if (!item.isDirectory) {
+                screenShots.add(item.absolutePath)
+            }
         }
         screenShots
     }
 
-     fun deleteImage(url: String): Boolean  {
+    fun deleteImage(url: String): Boolean {
         val fdelete = File(url)
+        Log.d(TAG, "deleteImage: file delete: " + fdelete.absolutePath)
         if (fdelete.exists()) {
             Log.d(TAG, "deleteImage: esxit")
             galleryAddPic(url)
@@ -559,11 +615,18 @@ class MainActivity : AppCompatActivity() {
         sendBroadcast(mediaScanIntent)
     }
 
-    fun renameFile(newName: String){
-        val sdcard = Environment.getExternalStorageDirectory()
-        val from = File(sdcard, "from.txt")
-        val to = File(sdcard, "to.txt")
-        from.renameTo(to)
+    fun renameFile(url: String, newName: String): Boolean {
+        val oldFile = File(url)
+        Log.d(TAG, "renameFile: old url: " + url)
+        val newPath = url.substring(0, url.lastIndexOf("/")) + "/" + newName
+
+        Log.d(TAG, "renameFile: new url: " + newPath)
+        val newFile = File(newPath)
+        if (oldFile.renameTo(newFile)) {
+            galleryAddPic(newPath)
+            return true
+        }
+        return false
     }
 
 }
