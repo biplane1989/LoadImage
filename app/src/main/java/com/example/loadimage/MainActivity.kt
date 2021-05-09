@@ -1,19 +1,29 @@
 package com.example.loadimage
 
+import android.Manifest.permission.READ_EXTERNAL_STORAGE
+import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.database.Cursor
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.TextView
+import android.widget.Toast
+import androidx.annotation.Nullable
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,64 +65,70 @@ class MainActivity : AppCompatActivity() {
 //            }
 //        }
 
-        lifecycleScope.launch {
-            for (item in getListImage()) {
-                Log.d(TAG, "onCreate: image : " + item)
-            }
-            for (item in getListAudio()) {
-                Log.d(TAG, "onCreate: audio: " + item)
-            }
-            for (item in getListVideo()) {
-                Log.d(TAG, "onCreate: video: " + item)
-            }
-            for (item in getDocumentList()) {
-                Log.d(TAG, "onCreate: doucument " + item)
-            }
 
-            for (item in getApkList()) {
-                Log.d(TAG, "onCreate: apk: " + item)
-            }
-            for (item in getDownload()) {
-                Log.d(TAG, "onCreate: download: " + item)
-            }
+        if (!checkPermission()){
 
-            for (item in getZip()) {
-                Log.d(TAG, "onCreate: zip: " + item)
-            }
-            for (item in getApp()) {
-                Log.d(TAG, "onCreate: app: " + item)
-            }
+            requestPermission()
+        }else{
+            lifecycleScope.launch {
+                for (item in getListImage()) {
+                    Log.d(TAG, "onCreate: image : " + item)
+                }
+                for (item in getListAudio()) {
+                    Log.d(TAG, "onCreate: audio: " + item)
+                }
+                for (item in getListVideo()) {
+                    Log.d(TAG, "onCreate: video: " + item)
+                }
+                for (item in getDocumentList()) {
+                    Log.d(TAG, "onCreate: doucument " + item)
+                }
 
-            for (item in getRecent(100)) {
-                Log.d(TAG, "onCreate: recent : " + item)
-            }
+                for (item in getApkList()) {
+                    Log.d(TAG, "onCreate: apk: " + item)
+                }
+                for (item in getDownload()) {
+                    Log.d(TAG, "onCreate: download: " + item)
+                }
 
-            for (item in getScreenShots()) {
-                Log.d(TAG, "onCreate: screen shot: " + item)
-            }
+                for (item in getZip()) {
+                    Log.d(TAG, "onCreate: zip: " + item)
+                }
+                for (item in getApp()) {
+                    Log.d(TAG, "onCreate: app: " + item)
+                }
+
+                for (item in getRecent(100)) {
+                    Log.d(TAG, "onCreate: recent : " + item)
+                }
+
+                for (item in getScreenShots()) {
+                    Log.d(TAG, "onCreate: screen shot: " + item)
+                }
 
 //            val urlIamge = getListImage().get(1)
 //            val urlIamge = getListAudio().get(1)
-            val urlIamge = getDocumentList().get(0)
+                val urlIamge = getDocumentList().get(0)
 
-            val delete: TextView = findViewById(R.id.delete)
-            delete.setOnClickListener {
-                Log.d(TAG, "onCreate: url: " + urlIamge)
-                if (deleteImage(urlIamge)) {
-                    Log.d(TAG, "onCreate: true")
-                } else {
-                    Log.d(TAG, "onCreate: false")
+                val delete: TextView = findViewById(R.id.delete)
+                delete.setOnClickListener {
+                    Log.d(TAG, "onCreate: url: " + urlIamge)
+                    if (deleteImage(urlIamge)) {
+                        Log.d(TAG, "onCreate: true")
+                    } else {
+                        Log.d(TAG, "onCreate: false")
+                    }
                 }
-            }
 
-            val rename: TextView = findViewById(R.id.rename)
-            rename.setOnClickListener {
-                Log.d(TAG, "onCreate: url: " + urlIamge)
+                val rename: TextView = findViewById(R.id.rename)
+                rename.setOnClickListener {
+                    Log.d(TAG, "onCreate: url: " + urlIamge)
 
-                if (renameFile(urlIamge, "orange1.pdf")) {
-                    Log.d(TAG, "onCreate: true")
-                } else {
-                    Log.d(TAG, "onCreate: false")
+                    if (renameFile(urlIamge, "orange1.pdf")) {
+                        Log.d(TAG, "onCreate: true")
+                    } else {
+                        Log.d(TAG, "onCreate: false")
+                    }
                 }
             }
         }
@@ -607,12 +623,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun galleryAddPic(imagePath: String) {
-        val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-        val f = File(imagePath)
-        val contentUri = Uri.fromFile(f)
-        mediaScanIntent.data = contentUri
-        sendBroadcast(mediaScanIntent)
+    private fun galleryAddPic(filePath: String) {
+//        val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+//        val f = File(imagePath)
+//        val contentUri = Uri.fromFile(f)
+//        mediaScanIntent.data = contentUri
+//        sendBroadcast(mediaScanIntent)
+
+        val file = File(filePath)
+        MediaScannerConnection.scanFile(
+            this, arrayOf(file.toString()),
+            null, null
+        )
     }
 
     fun renameFile(url: String, newName: String): Boolean {
@@ -627,6 +649,78 @@ class MainActivity : AppCompatActivity() {
             return true
         }
         return false
+    }
+
+
+    // xin quyen
+
+    val PERMISSION_REQUEST_CODE = 2296
+
+    private fun checkPermission(): Boolean {
+        return if (SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            val result =
+                ContextCompat.checkSelfPermission(this, READ_EXTERNAL_STORAGE)
+            val result1 =
+                ContextCompat.checkSelfPermission(this, WRITE_EXTERNAL_STORAGE)
+            result == PackageManager.PERMISSION_GRANTED && result1 == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun requestPermission() {
+        if (SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                intent.addCategory("android.intent.category.DEFAULT")
+                intent.data = Uri.parse(String.format("package:%s", applicationContext.packageName))
+                startActivityForResult(intent, 2296)
+            } catch (e: Exception) {
+                val intent = Intent()
+                intent.action = Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
+                startActivityForResult(intent, 2296)
+            }
+        } else {
+            //below android 11
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(WRITE_EXTERNAL_STORAGE),
+                PERMISSION_REQUEST_CODE
+            )
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, @Nullable data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 2296) {
+            if (SDK_INT >= Build.VERSION_CODES.R) {
+                if (Environment.isExternalStorageManager()) {
+                    // perform action when allow permission success
+                } else {
+                    Toast.makeText(this, "Allow permission for storage access!", Toast.LENGTH_SHORT)
+                        .show()
+                }
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        when (requestCode) {
+            PERMISSION_REQUEST_CODE -> if (grantResults.size > 0) {
+                val READ_EXTERNAL_STORAGE = grantResults[0] == PackageManager.PERMISSION_GRANTED
+                val WRITE_EXTERNAL_STORAGE = grantResults[1] == PackageManager.PERMISSION_GRANTED
+                if (READ_EXTERNAL_STORAGE && WRITE_EXTERNAL_STORAGE) {
+                    // perform action when allow permission success
+                } else {
+                    Toast.makeText(this, "Allow permission for storage access!", Toast.LENGTH_SHORT)
+                        .show()
+                }
+            }
+        }
     }
 
 }
