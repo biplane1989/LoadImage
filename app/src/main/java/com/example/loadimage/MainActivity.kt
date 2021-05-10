@@ -3,6 +3,8 @@ package com.example.loadimage
 import android.Manifest.permission.READ_EXTERNAL_STORAGE
 import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -13,6 +15,7 @@ import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
+import android.os.FileUtils
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
@@ -36,98 +39,103 @@ import kotlin.collections.ArrayList
 class MainActivity : AppCompatActivity() {
 
     val TAG = "giangtd"
+    private val OPEN_DIRECTORY_REQUEST_CODE = 0xf11e
 
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//            Log.d(TAG, "onCreate: qqqqqqqqq")
-//            for (item in getListImageAndroidQ()) {
-//                Log.d(TAG, "url image: " + item)
-//            }
-//
-//        } else {
-//            Log.d(TAG, "onCreate: <<<<<<<<<")
-//            for (item in getListImage()) {
-//                Log.d(TAG, "url image: " + item)
-//            }
-//        }
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE)
 
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//            for (item in getListAudioAndroidQ()) {
-//                Log.d(TAG, "url audio: " + item)
-//            }
-//        } else {
-//            for (item in getListAudio()) {
-//                Log.d(TAG, "url audio: " + item)
-//            }
-//        }
-
-
-        if (!checkPermission()){
-
+        if (!checkPermission()) {
             requestPermission()
-        }else{
+        } else {
             lifecycleScope.launch {
-                for (item in getListImage()) {
-                    Log.d(TAG, "onCreate: image : " + item)
-                }
-                for (item in getListAudio()) {
-                    Log.d(TAG, "onCreate: audio: " + item)
-                }
-                for (item in getListVideo()) {
-                    Log.d(TAG, "onCreate: video: " + item)
-                }
-                for (item in getDocumentList()) {
+//                for (item in FileManager.getListImage(this@MainActivity)) {
+//                    Log.d(TAG, "onCreate: image : " + item)
+//                }
+//                for (item in FileManager.getListAudio(this@MainActivity)) {
+//                    Log.d(TAG, "onCreate: audio: " + item)
+//                }
+//                for (item in FileManager.getListVideo(this@MainActivity)) {
+//                    Log.d(TAG, "onCreate: video: " + item)
+//                }
+                for (item in FileManager.getListDocument(this@MainActivity)) {
                     Log.d(TAG, "onCreate: doucument " + item)
                 }
 
-                for (item in getApkList()) {
-                    Log.d(TAG, "onCreate: apk: " + item)
-                }
-                for (item in getDownload()) {
-                    Log.d(TAG, "onCreate: download: " + item)
-                }
-
-                for (item in getZip()) {
-                    Log.d(TAG, "onCreate: zip: " + item)
-                }
-                for (item in getApp()) {
-                    Log.d(TAG, "onCreate: app: " + item)
-                }
-
-                for (item in getRecent(100)) {
-                    Log.d(TAG, "onCreate: recent : " + item)
-                }
-
-                for (item in getScreenShots()) {
-                    Log.d(TAG, "onCreate: screen shot: " + item)
-                }
+//                for (item in FileManager.getListApk(this@MainActivity)) {
+//                    Log.d(TAG, "onCreate: apk: " + item)
+//                }
+//                for (item in FileManager.getListDownload()) {
+//                    Log.d(TAG, "onCreate: download: " + item)
+//                }
+//
+//                for (item in FileManager.getListZip(this@MainActivity)) {
+//                    Log.d(TAG, "onCreate: zip: " + item)
+//                }
+//                for (item in FileManager.getListApp(this@MainActivity)) {
+//                    Log.d(TAG, "onCreate: app: " + item)
+//                }
+//
+//                for (item in FileManager.getListRecent(this@MainActivity, 100)) {
+//                    Log.d(TAG, "onCreate: recent : " + item)
+//                }
+//
+//                for (item in FileManager.getListScreenShots()) {
+//                    Log.d(TAG, "onCreate: screen shot: " + item)
+//                }
 
 //            val urlIamge = getListImage().get(1)
 //            val urlIamge = getListAudio().get(1)
-                val urlIamge = getDocumentList().get(0)
+//                val urlIamge = getDocumentList().get(0)
+
+                val path = "/storage/emulated/0/file test/orange1.txt"
+                val pathDelete = "/storage/9ABF-DA6C/orange1.txt"
 
                 val delete: TextView = findViewById(R.id.delete)
                 delete.setOnClickListener {
-                    Log.d(TAG, "onCreate: url: " + urlIamge)
-                    if (deleteImage(urlIamge)) {
+                    Log.d(TAG, "onCreate: url: " + path)
+                    if (FileManager.deleteFile(this@MainActivity, pathDelete)) {
+                        Log.d(TAG, "onCreate: true")
+                    } else {
+                        Log.d(TAG, "onCreate: false")
+                    }
+
+                }
+
+                val rename: TextView = findViewById(R.id.rename)
+                rename.setOnClickListener {
+                    Log.d(TAG, "onCreate: url: " + path)
+
+                    if (FileManager.renameFile(this@MainActivity, path, "orange1.txt")) {
                         Log.d(TAG, "onCreate: true")
                     } else {
                         Log.d(TAG, "onCreate: false")
                     }
                 }
 
-                val rename: TextView = findViewById(R.id.rename)
-                rename.setOnClickListener {
-                    Log.d(TAG, "onCreate: url: " + urlIamge)
-
-                    if (renameFile(urlIamge, "orange1.pdf")) {
+                val copy: TextView = findViewById(R.id.copy)
+                copy.setOnClickListener {
+                    Log.d(TAG, "onCreate: old: ")
+                    if (FileManager.copyFile(this@MainActivity, path)) {
                         Log.d(TAG, "onCreate: true")
                     } else {
                         Log.d(TAG, "onCreate: false")
+                    }
+                }
+
+                val path1 = "/storage/emulated/0/FileTest2/123text.txt"
+                val path2 = "/storage/9ABF-DA6C/"
+
+                val move: TextView = findViewById(R.id.move)
+                move.setOnClickListener {
+                    if (FileManager.moveFile(path1, path2)) {
+                        Log.d(TAG, "onCreate: truee")
+                    } else {
+                        Log.d(TAG, "onCreate: falsee")
                     }
                 }
             }
@@ -655,6 +663,7 @@ class MainActivity : AppCompatActivity() {
     // xin quyen
 
     val PERMISSION_REQUEST_CODE = 2296
+    val SDCARD_ROOT_CODE = 1999
 
     private fun checkPermission(): Boolean {
         return if (SDK_INT >= Build.VERSION_CODES.R) {
@@ -690,6 +699,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    lateinit var fileSD: File
     override fun onActivityResult(requestCode: Int, resultCode: Int, @Nullable data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 2296) {
@@ -701,6 +711,14 @@ class MainActivity : AppCompatActivity() {
                         .show()
                 }
             }
+        }
+        if (requestCode == OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            val directoryUri = data?.data ?: return
+
+            contentResolver.takePersistableUriPermission(
+                directoryUri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
         }
     }
 
@@ -722,5 +740,18 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    fun getRootPath(context: Context?, sdcardRootUri: Uri): File? {
+        val pathSegments = sdcardRootUri.pathSegments
+        val tokens = pathSegments[pathSegments.size - 1].split(":").toTypedArray()
+        for (f in ContextCompat.getExternalFilesDirs(this, null)) {
+            val path = f.absolutePath.substring(0, f.absolutePath.indexOf("/Android/"))
+            if (path.contains(tokens[0])) {
+                return File(path)
+            }
+        }
+        return null
+    }
+
 
 }
