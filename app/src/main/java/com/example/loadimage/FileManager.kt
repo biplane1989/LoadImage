@@ -377,8 +377,12 @@ object FileManager {
         Log.d(TAG, "deleteImage: file delete: " + fdelete.absolutePath)
         if (fdelete.exists()) {
             Log.d(TAG, "deleteImage: esxit")
-            galleryAddPic(context, url)
-            return fdelete.delete()
+            if (fdelete.delete()) {
+                galleryAddPic(context, url)
+                return true
+            } else {
+                return false
+            }
         } else {
             Log.d(TAG, "deleteImage: not esxits")
             return false

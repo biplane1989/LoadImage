@@ -46,8 +46,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE)
+//            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+//            startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE)
 
         if (!checkPermission()) {
             requestPermission()
@@ -93,11 +93,11 @@ class MainActivity : AppCompatActivity() {
 //                val urlIamge = getDocumentList().get(0)
 
                 val path = "/storage/emulated/0/file test/orange1.txt"
-                val pathDelete = "/storage/9ABF-DA6C/orange1.txt"
+                val pathDelete = "/storage/emulated/0/Documents/orange.txt"
 
                 val delete: TextView = findViewById(R.id.delete)
                 delete.setOnClickListener {
-                    Log.d(TAG, "onCreate: url: " + path)
+                    Log.d(TAG, "onCreate: url: " + pathDelete)
                     if (FileManager.deleteFile(this@MainActivity, pathDelete)) {
                         Log.d(TAG, "onCreate: true")
                     } else {
@@ -110,7 +110,7 @@ class MainActivity : AppCompatActivity() {
                 rename.setOnClickListener {
                     Log.d(TAG, "onCreate: url: " + path)
 
-                    if (FileManager.renameFile(this@MainActivity, path, "orange1.txt")) {
+                    if (FileManager.renameFile(this@MainActivity, pathDelete, "orange.txt")) {
                         Log.d(TAG, "onCreate: true")
                     } else {
                         Log.d(TAG, "onCreate: false")
@@ -120,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                 val copy: TextView = findViewById(R.id.copy)
                 copy.setOnClickListener {
                     Log.d(TAG, "onCreate: old: ")
-                    if (FileManager.copyFile(this@MainActivity, path)) {
+                    if (FileManager.copyFile(this@MainActivity, pathDelete)) {
                         Log.d(TAG, "onCreate: true")
                     } else {
                         Log.d(TAG, "onCreate: false")
@@ -699,7 +699,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    lateinit var fileSD: File
     override fun onActivityResult(requestCode: Int, resultCode: Int, @Nullable data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 2296) {
