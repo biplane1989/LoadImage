@@ -15,9 +15,9 @@ import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
-import android.os.FileUtils
 import android.provider.MediaStore
 import android.provider.Settings
+import android.text.TextUtils
 import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.TextView
@@ -27,11 +27,13 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
+import java.io.*
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -46,8 +48,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-//            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-//            startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE)
+//        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+//        startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE)
 
         if (!checkPermission()) {
             requestPermission()
@@ -92,35 +94,64 @@ class MainActivity : AppCompatActivity() {
 //            val urlIamge = getListAudio().get(1)
 //                val urlIamge = getDocumentList().get(0)
 
-                val path = "/storage/emulated/0/file test/orange1.txt"
-                val pathDelete = "/storage/emulated/0/Documents/orange.txt"
+                var uri =
+                    "content://com.android.externalstorage.documents/tree/9ABF-DA6C%3A".toUri()
+//                var uri = "content://com.android.externalstorage.documents/tree/9ABF-DA6C%3AMusic".toUri()
+
+//                val path = "/storage/emulated/0/FileTest2/tomato.txt"
+                val path = "/storage/9ABF-DA6C/Music/apple/tt.txt"
+                val pathDelete = "/storage/9ABF-DA6C/oranges.txt"
+//                val outPath = "/storage/emulated/0/FileTest2/"
+                val outPath = "/storage/9ABF-DA6C/"
+
 
                 val delete: TextView = findViewById(R.id.delete)
+
                 delete.setOnClickListener {
-                    Log.d(TAG, "onCreate: url: " + pathDelete)
-                    if (FileManager.deleteFile(this@MainActivity, pathDelete)) {
-                        Log.d(TAG, "onCreate: true")
-                    } else {
-                        Log.d(TAG, "onCreate: false")
+//                    Log.d(TAG, "onCreate: url: " + pathDelete)
+//                    if (FileManager.deleteFile(this@MainActivity, path, uri)) {
+//                        Log.d(TAG, "onCreate: true")
+//                    } else {
+//                        Log.d(TAG, "onCreate: false")
+//                    }
+
+                    val file = File("/storage/9ABF-DA6C/Music/apple")
+//                    if (SDCardUtils.checkWritableRootPath(this@MainActivity, path)) {
+
+                    if (file.exists()){
+                        Log.d(TAG, "onCreate: yeeeeeeeee")
+                    }else{
+                        Log.d(TAG, "onCreate: nooooooooo")
                     }
 
+
+//                    if (SDCardUtils.checkWritableRootPath(this@MainActivity, path)) {
+//                        Log.d(TAG, "onCreate: yesssssssssss")
+//                    } else {
+//                        Log.d(TAG, "onCreate: noooooooooooo")
+//                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+//                        startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE)
+//
+//                    }
                 }
+
 
                 val rename: TextView = findViewById(R.id.rename)
                 rename.setOnClickListener {
                     Log.d(TAG, "onCreate: url: " + path)
 
-                    if (FileManager.renameFile(this@MainActivity, pathDelete, "orange.txt")) {
+                    if (FileManager.renameFile(this@MainActivity, path, "tomato.txt", uri)) {
                         Log.d(TAG, "onCreate: true")
                     } else {
                         Log.d(TAG, "onCreate: false")
                     }
+
                 }
 
                 val copy: TextView = findViewById(R.id.copy)
                 copy.setOnClickListener {
                     Log.d(TAG, "onCreate: old: ")
-                    if (FileManager.copyFile(this@MainActivity, pathDelete)) {
+                    if (FileManager.copyFile(this@MainActivity, path, outPath, uri)) {
                         Log.d(TAG, "onCreate: true")
                     } else {
                         Log.d(TAG, "onCreate: false")
@@ -132,7 +163,7 @@ class MainActivity : AppCompatActivity() {
 
                 val move: TextView = findViewById(R.id.move)
                 move.setOnClickListener {
-                    if (FileManager.moveFile(path1, path2)) {
+                    if (FileManager.moveFile(this@MainActivity, path, outPath, uri)) {
                         Log.d(TAG, "onCreate: truee")
                     } else {
                         Log.d(TAG, "onCreate: falsee")
@@ -142,6 +173,7 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+
 
     /*  @RequiresApi(Build.VERSION_CODES.Q)
       fun getListImageAndroidQ(): ArrayList<Uri> {
@@ -693,11 +725,13 @@ class MainActivity : AppCompatActivity() {
             //below android 11
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(WRITE_EXTERNAL_STORAGE),
+                arrayOf(READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE),
                 PERMISSION_REQUEST_CODE
             )
         }
     }
+
+    //    lateinit var uri: Uri
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, @Nullable data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -713,7 +747,8 @@ class MainActivity : AppCompatActivity() {
         }
         if (requestCode == OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             val directoryUri = data?.data ?: return
-
+//            uri = directoryUri
+            Log.d(TAG, "onActivityResult: uri: " + directoryUri)
             contentResolver.takePersistableUriPermission(
                 directoryUri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -750,6 +785,144 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return null
+    }
+
+    fun isDeleteSDCardFile(activity: Activity?, uri: Uri?, delPath: String?): Boolean? {
+        val documentFile: DocumentFile? = getDocumentSDCardFile(this, uri, delPath)
+        return if (documentFile != null && documentFile.exists()) {
+            documentFile.delete()
+        } else false
+    }
+
+    fun isRenameSDCardFile(
+        activity: Activity?,
+        uri: Uri?,
+        delPath: String?,
+        newName: String
+    ): Boolean {
+        val documentFile: DocumentFile? = getDocumentSDCardFile(this, uri, delPath)
+        return if (documentFile != null && documentFile.exists()) {
+            documentFile.renameTo(newName)
+
+        } else false
+    }
+
+    fun getDocumentSDCardFile(context: Context, rootDir: Uri?, path: String?): DocumentFile? {
+        val file = File(path)
+        if (file.exists()) {
+            var pickedDir = DocumentFile.fromTreeUri(context, rootDir!!)
+            try {
+                val modeFlags =
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(rootDir, modeFlags)
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+                return null
+            }
+            val parts = file.path.split("/").toTypedArray()
+            if (parts.size == 3) {
+                if (pickedDir != null) {
+                    return pickedDir.findFile(file.name)
+                }
+            }
+            var filename: String? = ""
+            for (i in 3 until parts.size) {
+                val part = parts[i]
+                if (TextUtils.isEmpty(part)) {
+                    break
+                }
+                if (pickedDir != null) {
+                    pickedDir = pickedDir.findFile(part)
+                    filename = part
+                }
+            }
+            return if (TextUtils.equals(file.name, filename)) {
+                pickedDir
+            } else {
+                null
+            }
+        }
+        return null
+    }
+
+//    fun copy(copy: File, directory: String?, con: Context): Boolean {
+//        var inStream: FileInputStream? = null
+//        var outStream: OutputStream? = null
+////        val dir: DocumentFile = getDocumentFileIfAllowedToWrite(File(directory), con)!!
+//        val dir: DocumentFile = getDocumentSDCardFile(this, uri, copy.absolutePath)!!
+//        val mime: String = mime(copy.toURI().toString())!!
+//        val copy1 = dir.createFile(mime, copy.name)
+//        try {
+//            inStream = FileInputStream(copy)
+//            outStream = con.contentResolver.openOutputStream(copy1!!.uri)
+//            val buffer = ByteArray(16384)
+//            var bytesRead: Int
+//            while (inStream.read(buffer).also { bytesRead = it } != -1) {
+//                outStream!!.write(buffer, 0, bytesRead)
+//            }
+//        } catch (e: FileNotFoundException) {
+//            e.printStackTrace()
+//        } catch (e: IOException) {
+//            e.printStackTrace()
+//        } finally {
+//            try {
+//                inStream!!.close()
+//                outStream!!.close()
+//                return true
+//            } catch (e: IOException) {
+//                e.printStackTrace()
+//            }
+//        }
+//        return false
+//    }
+
+    fun mime(URI: String?): String? {
+        val type: String?
+        val extention = MimeTypeMap.getFileExtensionFromUrl(URI)
+        if (extention != null) {
+            return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extention)
+        }
+        return null
+    }
+
+    private fun copyFile(inputPath: String, outputPath: String, treeUri: Uri): String? {
+
+        val format = inputPath.substring(inputPath.lastIndexOf("."), inputPath.length)
+        val newName =
+            inputPath.substring(
+                inputPath.lastIndexOf("/") + 1,
+                inputPath.lastIndexOf(".")
+            ) + " - copy" + format
+
+
+        var inp: InputStream? = null
+        var out: OutputStream? = null
+        var error: String? = null
+        val pickedDir = DocumentFile.fromTreeUri(this, treeUri)
+//        val extension = inputFile.substring(inputFile.lastIndexOf(".") + 1, inputFile.length)
+        try {
+//            val newFile = pickedDir!!.createFile("audio/$extension", inputFile)
+            val newFile = pickedDir!!.createFile(mime(inputPath)!!, newName)
+
+//            out = getContentResolver().openOutputStream(newFile!!.uri)
+
+            out = FileOutputStream("/storage/emulated/0/FileTest2/" + newName)
+            inp = FileInputStream(inputPath)
+            val buffer = ByteArray(1024)
+            var read: Int
+            while (inp.read(buffer).also { read = it } != -1) {
+                out?.write(buffer, 0, read)
+            }
+            inp.close()
+            // write the output file (You have now copied the file)
+            out?.flush()
+            out?.close()
+        } catch (fnfe1: FileNotFoundException) {
+            error = fnfe1.message
+        } catch (e: java.lang.Exception) {
+            error = e.message
+        }
+        return error
     }
 
 

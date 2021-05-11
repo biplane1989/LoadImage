@@ -2,14 +2,19 @@ package com.example.loadimage
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.database.Cursor
 import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.text.TextUtils
 import android.util.Log
+import android.webkit.MimeTypeMap
 import androidx.annotation.RequiresApi
+import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.*
@@ -372,20 +377,31 @@ object FileManager {
         screenShots
     }
 
-    fun deleteFile(context: Context, url: String): Boolean {
-        val fdelete = File(url)
-        Log.d(TAG, "deleteImage: file delete: " + fdelete.absolutePath)
-        if (fdelete.exists()) {
-            Log.d(TAG, "deleteImage: esxit")
-            if (fdelete.delete()) {
-                galleryAddPic(context, url)
-                return true
-            } else {
-                return false
-            }
+    fun checkPathIsSDCard(path: String): Boolean {
+        return !path.contains("/storage/emulated/0/")
+    }
+
+    fun deleteFile(context: Context, url: String, uri: Uri?): Boolean {
+        if (checkPathIsSDCard(url)) {
+            val documentFile: DocumentFile? = getDocumentSDCardFile(context, uri, url)
+            return if (documentFile != null && documentFile.exists()) {
+                documentFile.delete()
+            } else false
         } else {
-            Log.d(TAG, "deleteImage: not esxits")
-            return false
+            val fdelete = File(url)
+            Log.d(TAG, "deleteImage: file delete: " + fdelete.absolutePath)
+            return if (fdelete.exists()) {
+                Log.d(TAG, "deleteImage: esxit")
+                if (fdelete.delete()) {
+                    galleryAddPic(context, url)
+                    true
+                } else {
+                    false
+                }
+            } else {
+                Log.d(TAG, "deleteImage: not esxits")
+                false
+            }
         }
     }
 
@@ -397,38 +413,74 @@ object FileManager {
         )
     }
 
-    fun renameFile(context: Context, url: String, newName: String): Boolean {
-        val oldFile = File(url)
-        Log.d(TAG, "renameFile: old url: " + url)
-        val newPath = url.substring(0, url.lastIndexOf("/")) + "/" + newName
-
-        Log.d(TAG, "renameFile: new url: " + newPath)
-        val newFile = File(newPath)
-        if (oldFile.renameTo(newFile)) {
-            galleryAddPic(context, newPath)
-            return true
+    fun getDocumentSDCardFile(context: Context, rootDir: Uri?, path: String?): DocumentFile? {
+        val file = File(path)
+        if (file.exists()) {
+            var pickedDir = DocumentFile.fromTreeUri(context, rootDir!!)
+            try {
+                val modeFlags =
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(rootDir, modeFlags)
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+                return null
+            }
+            val parts = file.path.split("/").toTypedArray()
+            if (parts.size == 3) {
+                if (pickedDir != null) {
+                    return pickedDir.findFile(file.name)
+                }
+            }
+            var filename: String? = ""
+            for (i in 3 until parts.size) {
+                val part = parts[i]
+                if (TextUtils.isEmpty(part)) {
+                    break
+                }
+                if (pickedDir != null) {
+                    pickedDir = pickedDir.findFile(part)
+                    filename = part
+                }
+            }
+            return if (TextUtils.equals(file.name, filename)) {
+                pickedDir
+            } else {
+                null
+            }
         }
-        return false
+        return null
     }
 
-    fun copyFile(context: Context, path: String): Boolean {
-        val format = path.substring(path.lastIndexOf("."), path.length)
-//        val newPath = path.substring(0, path.lastIndexOf(".")) + "copy" + format
-        val fileName =
-            path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf(".")) + "-copy" + format
-        val newPath = path.substring(0, path.lastIndexOf("/")) + "/"
-        Log.d(TAG, "copyFile: old path: " + path + "     name: " + fileName)
-        if (copyNewFile(path, newPath)) {
-            galleryAddPic(context, newPath)
-            return true
+    fun renameFile(context: Context, url: String, newName: String, uri: Uri): Boolean {
+        if (checkPathIsSDCard(url)) {
+            val documentFile: DocumentFile? = getDocumentSDCardFile(context, uri, url)
+            return if (documentFile != null && documentFile.exists()) {
+                documentFile.renameTo(newName)
+
+            } else false
+        } else {
+            val oldFile = File(url)
+            Log.d(TAG, "renameFile: old url: " + url)
+            val newPath = url.substring(0, url.lastIndexOf("/")) + "/" + newName
+
+            Log.d(TAG, "renameFile: new url: " + newPath)
+            val newFile = File(newPath)
+            if (oldFile.renameTo(newFile)) {
+                galleryAddPic(context, newPath)
+                return true
+            }
+            return false
         }
-        return false
     }
 
-    private fun copyNewFile(inputPath: String, outputPath: String): Boolean {
+    fun copyFile(
+        context: Context,
+        inputPath: String,
+        outputPath: String,
+        uri: Uri
+    ): Boolean {
 
         val format = inputPath.substring(inputPath.lastIndexOf("."), inputPath.length)
-        val newPath = inputPath.substring(0, inputPath.lastIndexOf(".")) + "copy" + format
         val newName =
             inputPath.substring(
                 inputPath.lastIndexOf("/") + 1,
@@ -437,72 +489,111 @@ object FileManager {
 
         var input: InputStream? = null
         var out: OutputStream? = null
+        var error: String? = null
+        val pickedDir = DocumentFile.fromTreeUri(context, uri)
+
         try {
             //create output directory if it doesn't exist
             val dir = File(outputPath)
             if (!dir.exists()) {
                 dir.mkdirs()
             }
+
             input = FileInputStream(inputPath)
-            out = FileOutputStream(outputPath + newName)
+
+            if (checkPathIsSDCard(outputPath)) {
+                val newFile = pickedDir?.createFile(mime(inputPath)!!, newName)
+
+                out = context.getContentResolver().openOutputStream(newFile!!.uri)
+            } else {
+                out = FileOutputStream(outputPath + newName)
+            }
+            Log.d(TAG, "copyFile: out: " + outputPath + newName)
+
             val buffer = ByteArray(1024)
             var read: Int
             while (input.read(buffer).also { read = it } != -1) {
-                out.write(buffer, 0, read)
+                out?.write(buffer, 0, read)
             }
             input.close()
             input = null
 
             // write the output file (You have now copied the file)
-            out.flush()
-            out.close()
+            out?.flush()
+            out?.close()
             out = null
+
+            galleryAddPic(context, outputPath)
 
             return true
         } catch (fnfe1: FileNotFoundException) {
             Log.e("tag", fnfe1.message!!)
         } catch (e: Exception) {
             Log.e("tag", e.message!!)
+        } finally {
+
         }
         return false
     }
 
-    fun moveFile(inputPath: String, outputPath: String): Boolean {
+    fun mime(URI: String?): String? {
+        val type: String?
+        val extention = MimeTypeMap.getFileExtensionFromUrl(URI)
+        if (extention != null) {
+            return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extention)
+        }
+        return null
+    }
 
-        val fileName = inputPath.substring(inputPath.lastIndexOf("/"), inputPath.length)
+    fun moveFile(context: Context, inputPath: String, outputPath: String, uri: Uri): Boolean {
+        val format = inputPath.substring(inputPath.lastIndexOf("."), inputPath.length)
+        val newName =
+            inputPath.substring(inputPath.lastIndexOf("/")+1, inputPath.length)
 
         var input: InputStream? = null
         var out: OutputStream? = null
-        try {
+        var error: String? = null
+        val pickedDir = DocumentFile.fromTreeUri(context, uri)
 
+        try {
             //create output directory if it doesn't exist
             val dir = File(outputPath)
             if (!dir.exists()) {
                 dir.mkdirs()
             }
+
             input = FileInputStream(inputPath)
-            out = FileOutputStream(outputPath + fileName)
+
+            if (checkPathIsSDCard(outputPath)) {
+                val newFile = pickedDir?.createFile(mime(inputPath)!!, newName)
+
+                out = context.getContentResolver().openOutputStream(newFile!!.uri)
+            } else {
+                out = FileOutputStream(outputPath + newName)
+            }
+            Log.d(TAG, "copyFile: out: " + outputPath + newName)
+
             val buffer = ByteArray(1024)
             var read: Int
             while (input.read(buffer).also { read = it } != -1) {
-                out.write(buffer, 0, read)
+                out?.write(buffer, 0, read)
             }
             input.close()
             input = null
 
-            // write the output file
-            out.flush()
-            out.close()
+            // write the output file (You have now copied the file)
+            out?.flush()
+            out?.close()
             out = null
 
-            // delete the original file
-            File(inputPath).delete()
-
+            deleteFile(context, inputPath, uri)
             return true
         } catch (fnfe1: FileNotFoundException) {
             Log.e("tag", fnfe1.message!!)
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             Log.e("tag", e.message!!)
+        } finally {
+
         }
         return false
     }
