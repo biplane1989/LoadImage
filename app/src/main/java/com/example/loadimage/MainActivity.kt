@@ -2,24 +2,17 @@ package com.example.loadimage
 
 import android.Manifest.permission.READ_EXTERNAL_STORAGE
 import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.database.Cursor
-import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
-import android.provider.MediaStore
 import android.provider.Settings
-import android.text.TextUtils
 import android.util.Log
-import android.webkit.MimeTypeMap
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.Nullable
@@ -30,12 +23,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.*
 import java.util.*
-import kotlin.collections.ArrayList
 
 
 class MainActivity : AppCompatActivity() {
@@ -96,13 +86,14 @@ class MainActivity : AppCompatActivity() {
 
                 var uri =
                     "content://com.android.externalstorage.documents/tree/9ABF-DA6C%3A".toUri()
-//                var uri = "content://com.android.externalstorage.documents/tree/9ABF-DA6C%3AMusic".toUri()
+//                var uri = "content://com.android.externalstorage.documents/tree/9289-1E00%3Aapple".toUri()
+//                var uri= "content://com.android.externalstorage.documents/tree/9ABF-DA6C%3AMusic%2Fapple".toUri()
 
-//                val path = "/storage/emulated/0/FileTest2/tomato.txt"
-                val path = "/storage/9ABF-DA6C/Music/apple/tt.txt"
-                val pathDelete = "/storage/9ABF-DA6C/oranges.txt"
+//                val path = "/storage/sdcard1/rrrr.txt"
+                val path = "/storage/9ABF-DA6C/tomato.txt"
+//                val pathDelete = "/storage/9ABF-DA6C/oranges.txt"
 //                val outPath = "/storage/emulated/0/FileTest2/"
-                val outPath = "/storage/9ABF-DA6C/"
+                val outPath = "/storage/9ABF-DA6C/Music/"
 
 
                 val delete: TextView = findViewById(R.id.delete)
@@ -115,14 +106,11 @@ class MainActivity : AppCompatActivity() {
 //                        Log.d(TAG, "onCreate: false")
 //                    }
 
-                    val file = File("/storage/9ABF-DA6C/Music/apple")
+//                    val file = File("/storage/9ABF-DA6C/Music/apple")
 //                    if (SDCardUtils.checkWritableRootPath(this@MainActivity, path)) {
 
-                    if (file.exists()){
-                        Log.d(TAG, "onCreate: yeeeeeeeee")
-                    }else{
-                        Log.d(TAG, "onCreate: nooooooooo")
-                    }
+                    val file = getExtDocumentFileSDcard(this@MainActivity, outPath, uri.toString())
+                    Log.d(TAG, "onCreate: uri path: " + file?.uri.toString())
 
 
 //                    if (SDCardUtils.checkWritableRootPath(this@MainActivity, path)) {
@@ -157,9 +145,6 @@ class MainActivity : AppCompatActivity() {
                         Log.d(TAG, "onCreate: false")
                     }
                 }
-
-                val path1 = "/storage/emulated/0/FileTest2/123text.txt"
-                val path2 = "/storage/9ABF-DA6C/"
 
                 val move: TextView = findViewById(R.id.move)
                 move.setOnClickListener {
@@ -230,12 +215,14 @@ class MainActivity : AppCompatActivity() {
         }
         if (requestCode == OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             val directoryUri = data?.data ?: return
-//            uri = directoryUri
+
             Log.d(TAG, "onActivityResult: uri: " + directoryUri)
-            contentResolver.takePersistableUriPermission(
-                directoryUri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+
+//            contentResolver.takePersistableUriPermission(
+//                directoryUri,
+//                Intent.FLAG_GRANT_READ_URI_PERMISSION
+//            )
+            takeUriPermssion(this, directoryUri)
         }
     }
 
@@ -268,6 +255,43 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return null
+    }
+
+    fun takeUriPermssion(context: Context, rootDir: Uri?) {
+        val modeFlags =
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        context.applicationContext.contentResolver.takePersistableUriPermission(
+            rootDir!!,
+            modeFlags
+        )
+    }
+
+    fun getExtDocumentFileSDcard(context: Context, path: String, extSDUri: String): DocumentFile? {
+
+        if (extSDUri == null) {
+            return null
+        }
+        var file = DocumentFile.fromTreeUri(context, Uri.parse(extSDUri))
+        if (file == null) {
+            return null
+        }
+        if (path.contains("/")) {
+            val split = path.split("/").toTypedArray()
+            for (i in split.indices) {
+                var df = file!!.findFile(split[i])
+                if (df == null) {
+                    df = if (i == split.size - 1) {
+                        file!!.createFile("*/*", split[i])
+                    } else {
+                        file!!.createDirectory(split[i])
+                    }
+                }
+                file = df
+            }
+        } else {
+            file = file!!.createFile("*/*", path)
+        }
+        return file
     }
 
 }

@@ -9,6 +9,8 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.FileUtils
+import android.os.storage.StorageManager
 import android.provider.MediaStore
 import android.text.TextUtils
 import android.util.Log
@@ -20,6 +22,7 @@ import kotlinx.coroutines.withContext
 import java.io.*
 import java.util.*
 import kotlin.collections.ArrayList
+
 
 object FileManager {
 
@@ -456,7 +459,6 @@ object FileManager {
             val documentFile: DocumentFile? = getDocumentSDCardFile(context, uri, url)
             return if (documentFile != null && documentFile.exists()) {
                 documentFile.renameTo(newName)
-
             } else false
         } else {
             val oldFile = File(url)
@@ -485,7 +487,7 @@ object FileManager {
             inputPath.substring(
                 inputPath.lastIndexOf("/") + 1,
                 inputPath.lastIndexOf(".")
-            ) + " - copy" + format
+            ) + "-copy" + format
 
         var input: InputStream? = null
         var out: OutputStream? = null
@@ -499,6 +501,7 @@ object FileManager {
                 dir.mkdirs()
             }
 
+            Log.d(TAG, "copyFile: out: " + outputPath + newName)
             input = FileInputStream(inputPath)
 
             if (checkPathIsSDCard(outputPath)) {
@@ -518,6 +521,7 @@ object FileManager {
             input.close()
             input = null
 
+
             // write the output file (You have now copied the file)
             out?.flush()
             out?.close()
@@ -527,6 +531,7 @@ object FileManager {
 
             return true
         } catch (fnfe1: FileNotFoundException) {
+            
             Log.e("tag", fnfe1.message!!)
         } catch (e: Exception) {
             Log.e("tag", e.message!!)
@@ -589,13 +594,81 @@ object FileManager {
             deleteFile(context, inputPath, uri)
             return true
         } catch (fnfe1: FileNotFoundException) {
-            Log.e("tag", fnfe1.message!!)
+            Log.d(TAG, "moveFile: errorrrrrr")
+            Log.e("giangtd", fnfe1.message!!)
         } catch (e: Exception) {
-            Log.e("tag", e.message!!)
+            Log.d(TAG, "moveFile: errorrrrrr")
+            Log.e("giangtd", e.message!!)
         } finally {
 
         }
         return false
     }
+
+
+   /* class ExDirItem {
+        var usb = false
+        var intCard = false
+        var fileDir: String? = null
+        var rootDir: String? = null
+    }
+
+    fun getDirList(): ArrayList<ExDirItem> {
+        var str: String
+        val currentTimeMillis = System.currentTimeMillis()
+        val arrayList: ArrayList<ExDirItem> = exDirList
+        if (arrayList != null && currentTimeMillis - lastListTime < 5000) {
+            return arrayList
+        }
+        lastListTime = currentTimeMillis
+        exDirList = ArrayList()
+        var fileArr: Array<File?>? = null
+        try {
+            fileArr = App.ctx().getExternalFilesDirs(null)
+        } catch (unused: NullPointerException) {
+            unused.printStackTrace()
+        }
+        if (fileArr == null) {
+            return exDirList
+        }
+        for (i in fileArr.indices) {
+            try {
+                val file = fileArr[i]
+                if (file != null) {
+                    str = Environment.getExternalStorageState(file)
+                    if (str == "mounted" || str == "mounted_ro" || str == "shared") {
+                        val exDirItem = ExDirItem()
+                        val absolutePath = file.absolutePath
+                        exDirItem.fileDir = absolutePath
+                        exDirItem.usb = false
+                        if (Build.VERSION.SDK_INT >= 24) {
+                            val ctx: App = App.ctx()
+                            exDirItem.usb = ctx.getSystemService(StorageManager::class.java)
+                                .getStorageVolume(File(exDirItem.fileDir)).getDescription(ctx)
+                                .toUpperCase().contains("USB")
+                        }
+                        exDirItem.intCard = i == 0
+                        val indexOf = absolutePath.indexOf("/Android/")
+                        if (indexOf != -1) {
+                            exDirItem.rootDir = absolutePath.substring(0, indexOf)
+                            exDirList.add(exDirItem)
+                        }
+                    }
+                }
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+        }
+        return exDirList
+    }
+
+    fun getExtCardPath(isFileDir: Boolean): String? {
+        val dirList = getDirList()
+        if (dirList.size() < 2) {
+            return null
+        }
+        return if (isFileDir) dirList[1].fileDir else dirList[1].rootDir
+    }*/
+
 
 }
